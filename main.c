@@ -1,12 +1,27 @@
-        int     fd[2], fd2[2], nbytes;
-        pid_t   childpid;
-        pid_t   childpid2;
-        char    string[] = "Hello, world!\n";
-        char    readbuffer[80];
-        int c;
+#include <string.h>
+#include <time.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
 
-        pipe(fd);
-        pipe(fd2);
+int CONT=0;
+int signalON;
+int main(void)
+{
+        int     pipe1[2],pipe2[2], nbytes;
+        pid_t   childpid;
+        char    readbuffer[80];
+        int c = 99;
+        sprintf(readbuffer, "%d\n ",c); 
+        pipe(pipe1);
+        pipe(pipe2);
+
+        void sigchld_handler(int sig);
+        
 
         if((childpid = fork()) == -1)
         {
@@ -14,27 +29,67 @@
                 exit(1);
         }
  
-        printf("Main program:"); 
-
-        if(childpid == 1)
+        
+        
+        if(childpid == 0) // HIJO
         {
-                int c;
-                printf("Padre:"); 
-                c=getchar();
-                printf("C %c\n",c);
-                close(fd[0]);
+                for(;;)
+                {
+                    printf("Hijo:\n"); 
+                    close(pipe1[1]);
+                    nbytes = read(pipe1[0], readbuffer, sizeof(readbuffer));               
+                    printf("Valor recivido: %s ", readbuffer);
 
-                write(fd[1], string, (strlen(string)+1));
+                    int num = atoi(readbuffer);
+                    num = num +3;
+                    printf("+ 3 = %d\n",num);
+                    // calculo +3
+
+                     CONT = CONT + 1;
+                        if (CONT > 10) 
+                        { 
+                            exit(0);
+                        }
+
+
+                    sprintf(readbuffer, "%d\n ",num);  
+
+                   
+
+
+                    close(pipe2[0]);
+                    write(pipe2[1], readbuffer, (strlen(readbuffer)));
+                    }
                 exit(0);
         }
-        else
+        else  
         {
-                int c;
-                printf("Hijo"); 
-                c=getchar();
-                printf("P %c\n",c);
-                close(fd[1]);
+            
 
-                nbytes = read(fd[0], readbuffer, sizeof(readbuffer));
-                printf("Received string: %s", readbuffer);
+                    for(;;){
+                        printf("Padre: \n");
+                        close(pipe1[0]);
+                        write(pipe1[1], readbuffer, (strlen(readbuffer)+1));
+
+
+                        close(pipe2[1]);                       
+                        nbytes = read(pipe2[0], readbuffer, sizeof(readbuffer));               
+                        printf("Valor recivido: %s ", readbuffer);
+                        int num = atoi(readbuffer);
+                        num = num +7;
+                        printf("+ 7 =  %d\n",num);
+
+                        sprintf(readbuffer, "%d\n ",num); 
+                    }
+                
+            
+                
         }
+    
+
+        return(0);
+}
+
+void sigchld_handler(int sig){
+    signalON = 1;
+}
